@@ -3,8 +3,49 @@ Self-Driving Car Engineer Nanodegree Program
 
 ---
 
-## Dependencies
 
+## Reflection on the PID Controller Program
+Here is the impact of P, I, D component of the PID algorithm on my program.
+
+#### P (Proportional) Component
+The P component had the biggest impact on the magnitude of the control output, because this is the component that causes a proportional change in the magnitude of the control output. This also caused the widest swings, if I choose a higher value, especially in the absence of other conponents, such as the D component.
+
+#### I (Integral) Component
+This term really helps compensate for any biases or drifts in the system. Since there is presumably not much drift in our system, we notice that the value of the I component is very close to zero. For our setup, this was the least influential of the components.
+
+#### D (Derivative) Component
+This component helps reduce the control output magnitude as we start seeing the CTE (cross track error) reduce with time very fast. When the CTE error reduces, the Derivative of CTE with respect to time, will be negative, hence we are effectively damping out the control output. This helps reduce the wide swings we would otherwise see, if we were just operating on the P component.
+
+## Hyperparameter Choosing
+This was probably the more challenging part of the program. Here are the rough steps I followed:
+
+#### Manual Probing/Tuning
+I first manually probed various values that can keep the car on the road and reduce the swings. First thing I noted is that, I cannot have all of the P-I-D components 0, as the car will just not be able to stay on the road. So I started changing various values (starting with lower values). I tried the followng values manually:
+
+* pid.Init(0.4, 0.004, 4); --> very unstable ride, swerves wildly to left and right
+* pid.Init(0.4, 0.04, 4); --> less swerving ride
+* pid.Init(0.4, 0.4, 4); --> Very bad ride
+* pid.Init(0.4, 0.4, 0.4); --> Very bad ride
+* pid.Init(0.4, 0.004, 2); --> Somewhat stable
+* pid.Init(0.1, 0.004, 1);  --> More stable
+* pid.Init(0.07, 0.004, 1); --> Somewhat stable
+* pid.Init(0.12, 0.004, 1); --> Best manually tuned ride
+
+#### Tuning using Twiddle algorithm
+I implemented the Twiddle algorithm as explained in the lectures. The main challenge using Twiddle was that, I had to start with more reasonable starting values for the hyperparameters, as otherwise the car would not stay on the road long enough for the tuning to proceed using Twiddle. Another challenge was how to inject Twiddle into the given code because the driver for the code were continuous events from the Simulator. I did this by chunking the continuous input data into batches over which I would iterate on parameters (from batch to batch). I had to experiment with different batch sizes (MAX_ITER). I had to make two modes for the program to operate in:
+
+* Tuning mode: When "tune" command line parameter passed, the program first tunes and then continues with the tuned parameters.
+* Running mode: When no command line parameter is passed, the program runs with pre-tuned parameters set in code.
+
+Overall, here are the results I decide to continue with:
+
+* Starting parameters (PID): 0.07, 0.003, 0.6
+* Final Tuned Parameters (PID): 0.184845, 0.00911653, 1.4098
+
+The videos for my Twiddle based tuning exercise are recorded [here](https://youtu.be/zQFBAXSPSzc).
+The video of my car go around one lap on the given track is recorded [here](https://youtu.be/cU468pyPBMk).
+
+## Dependencies
 * cmake >= 3.5
  * All OSes: [click here for installation instructions](https://cmake.org/install/)
 * make >= 4.1(mac, linux), 3.81(Windows)

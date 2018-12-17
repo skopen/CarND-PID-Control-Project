@@ -50,6 +50,11 @@ double PID::TotalError()
 	return totalError;
 }
 
+void PID::ResetTotalError()
+{
+	totalError = 0;
+}
+
 double PID::getControl() {
 
 	return control;

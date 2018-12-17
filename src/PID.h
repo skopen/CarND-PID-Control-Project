@@ -49,6 +49,8 @@ public:
   */
   double TotalError();
 
+  void ResetTotalError();
+
   double getControl();
 };
 

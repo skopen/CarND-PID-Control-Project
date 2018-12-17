@@ -4,6 +4,12 @@
 #include "PID.h"
 #include <math.h>
 
+using namespace std;
+
+
+// https://youtu.be/zQFBAXSPSzc
+// https://youtu.be/cU468pyPBMk
+
 // for convenience
 using json = nlohmann::json;
 
@@ -14,17 +20,27 @@ double rad2deg(double x) { return x * 180 / pi(); }
 
 double FACTOR = 0.2;
 double p[3] = {0.1, 0.004, 1};
-//double dp[3] = {1, 1, 1};
-double dp[3] = {p[0]*FACTOR, p[1]*FACTOR, p[2]*FACTOR};
+
+
 bool PIDHyperparamTuning = true;
 int paramTuned = -1;
 int iter = 0;
-int MAX_ITER = 100; // this is N in the Python version
+int MAX_ITER = 10; // this is N in the Python version
 double BEST_ERROR = 99999999;
-double BEST_PARAMS[] = {0, 0, 0};
+
+double TUNED_BEST_PARAMS[3] = {0.184845, 0.00911653, 1.4098};
+
+double STARTING_TUNING_PARAMS[3] = {0.07, 0.003, 0.6};
+double BEST_PARAMS[] = {STARTING_TUNING_PARAMS[0], STARTING_TUNING_PARAMS[1], STARTING_TUNING_PARAMS[2]};
+
+double dp[3] = {STARTING_TUNING_PARAMS[0]*FACTOR, STARTING_TUNING_PARAMS[1]*FACTOR, STARTING_TUNING_PARAMS[2]*FACTOR};
+double TOLERANCE = 0.05;
+
 double ERROR = 0;
 int ROUND = 1;
-bool TUNING_COMPLETE = false;
+bool TUNING_COMPLETE = true;
+
+// 0.24741, 0.0137772, 3.1722 BEST with 10 MAX_ITER
 
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
@@ -42,22 +58,34 @@ std::string hasData(std::string s) {
   return "";
 }
 
-int main()
+int main(int argc, char* argv[])
 {
   uWS::Hub h;
 
   PID pid;
   // TODO: Initialize the pid variable.
 
-  // pid.Init(0.4, 0.004, 4) --> very bumpy ride, swerves widly to left and right
-  // pid.Init(0.4, 0.04, 4); --> less swervy ride
-  // pid.Init(0.4, 0.4, 4); --> can't ride, so bad
-  // pid.Init(0.4, 0.4, 0.4); --> really bad, can't drive
-  // pid.Init(0.4, 0.004, 2); --> somewhat stable
-  // pid.Init(0.1, 0.004, 1);  --> most stable so far
-  // pid.Init(0.07, 0.004, 1); --> It's OK.
+  if (argc == 2 && strcmp(argv[1], "tune") == 0)
+  {
+	  TUNING_COMPLETE = false;
 
-  pid.Init(p[0], p[1], p[2]);
+	  std::cout << "=================================================================" << std::endl;
+	  cout << "TUNING PID CONTROLLER FIRST..." << endl;
+	  std::cout << "=================================================================" << std::endl;
+
+	  p[0] = STARTING_TUNING_PARAMS[0]; p[1] = STARTING_TUNING_PARAMS[1]; p[2] = STARTING_TUNING_PARAMS[2];
+	  pid.Init(STARTING_TUNING_PARAMS[0], STARTING_TUNING_PARAMS[1], STARTING_TUNING_PARAMS[2]);
+
+	  std::cout << "Trying params: " << p[0] << ", " << p[1] << ", " << p[2] << std::endl;
+  }
+  else
+  {
+	  std::cout << "=================================================================" << std::endl;
+	  cout << "USING PRE-TUNED PID CONTROLLER PARAMS: " << TUNED_BEST_PARAMS[0] << ", " << TUNED_BEST_PARAMS[1] << ", " << TUNED_BEST_PARAMS[2] << endl;
+	  std::cout << "=================================================================" << std::endl;
+
+	  pid.Init(TUNED_BEST_PARAMS[0], TUNED_BEST_PARAMS[1], TUNED_BEST_PARAMS[2]);
+  }
 
   h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -90,15 +118,14 @@ int main()
 
 			  if (iter == 1)
 			  {
-				  paramTuned = (paramTuned + 1)%3;
+				  paramTuned = (paramTuned + 1) % 3;
 
-				  if ((dp[0] + dp[1] + dp[2]) < 0.2 && (paramTuned == 0))
+				  if ((dp[0] + dp[1] + dp[2]) < TOLERANCE && (paramTuned == 0))
 				  {
-					  std::cout << "=================================================================." << std::endl;
-					  std::cout << "=================================================================." << std::endl;
-					  std::cout << "TUNING COMPLETE. BEST PARAMS: " << BEST_PARAMS[0] << ", " << BEST_PARAMS[1] << ", " << BEST_PARAMS[2];
-					  std::cout << "=================================================================." << std::endl;
-					  std::cout << "=================================================================." << std::endl;
+					  std::cout << "=================================================================" << std::endl;
+					  std::cout << "TUNING COMPLETE. FOUND BEST PARAMS: " << BEST_PARAMS[0] << ", " << BEST_PARAMS[1] << ", " << BEST_PARAMS[2] << endl;
+					  std::cout << "Using these params..." << endl;
+					  std::cout << "=================================================================" << std::endl;
 
 					  TUNING_COMPLETE = true;
 
@@ -109,6 +136,10 @@ int main()
 			  }
 
 			  if (iter == MAX_ITER)
+			  {
+				  pid.ResetTotalError();
+			  }
+			  else if (iter == MAX_ITER*2)
 			  {
 				  ERROR += pid.TotalError();
 			  }
@@ -127,6 +158,8 @@ int main()
 				  else
 				  {
 					  p[paramTuned] -= 2*dp[paramTuned];
+
+					  std::cout << "Trying params: " << p[0] << ", " << p[1] << ", " << p[2] << std::endl;
 					  pid.Init(p[0], p[1], p[2]);
 					  ROUND = 2;
 				  }
@@ -149,6 +182,8 @@ int main()
 				  {
 					  p[paramTuned] += dp[paramTuned];
 					  dp[paramTuned] *= 0.9;
+
+					  std::cout << "Trying params: " << p[0] << ", " << p[1] << ", " << p[2] << std::endl;
 					  pid.Init(p[0], p[1], p[2]);
 					  ROUND = 1;
 				  }
