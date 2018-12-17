@@ -10,6 +10,12 @@ public:
   double i_error;
   double d_error;
 
+  double prevCte;
+
+  double control;
+
+  double totalError;
+
   /*
   * Coefficients
   */ 
@@ -41,6 +47,8 @@ public:
   * Calculate the total PID error.
   */
   double TotalError();
+
+  double getControl();
 };
 
 #endif /* PID_H */
