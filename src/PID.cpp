@@ -12,6 +12,8 @@ PID::~PID() {}
 
 void PID::Init(double Kp, double Ki, double Kd) {
 
+	//std::cout << "Initing PID: " << Kp << ", " << Ki << ", " << Kd << std::endl;
+
 	this->Kp = Kp;
 	this->Ki = Ki;
 	this->Kd = Kd;
