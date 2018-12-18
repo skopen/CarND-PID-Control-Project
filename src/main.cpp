@@ -6,10 +6,6 @@
 
 using namespace std;
 
-
-// https://youtu.be/zQFBAXSPSzc
-// https://youtu.be/cU468pyPBMk
-
 // for convenience
 using json = nlohmann::json;
 
@@ -112,8 +108,6 @@ int main(int argc, char* argv[])
           
           if (!TUNING_COMPLETE)
           {
-        	  //std::cout << "ITER: " << iter << std::endl;
-
         	  iter++;
 
 			  if (iter == 1)
